@@ -1,0 +1,44 @@
+DOCKER FILE
+
+# Use a lightweight base image
+FROM python:3.9-slim-buster
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy the requirements file to the working directory
+COPY requirements.txt .
+
+# Install the dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the rest of the application code to the container
+COPY . .
+
+# Remove any unnecessary files or directories
+# Adjust the patterns according to your project's structure and needs
+RUN find . -name "*.pyc" -delete && \
+    find . -type d -name "__pycache__" -exec rm -r {} + && \
+    rm -rf .git
+
+# Set the entry point command for the container
+CMD [ "python", "app.py" ]
+
+
+docker-compose.yaml
+
+
+version: '3'
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+  db:
+    image: postgres:12
+    environment:
+      - POSTGRES_USER=your_username
+      - POSTGRES_PASSWORD=your_password
+      - POSTGRES_DB=your_database_name
