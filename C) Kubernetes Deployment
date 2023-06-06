@@ -1,0 +1,109 @@
+1) Helm chart:
+
+
+$ mkdir mywebapp-chart
+$ cd mywebapp-chart
+
+
+
+2) Chart.yaml
+
+apiVersion: v2
+name: mywebapp
+version: 1.0.0
+description: A Helm chart for deploying MyWebApp
+
+
+3) values.yaml
+
+replicaCount: 3
+image:
+  repository: mywebapp
+  tag: 1.0.0
+  pullPolicy: IfNotPresent
+service:
+  type: ClusterIP
+  port: 80
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  path: /
+  hosts:
+    - mywebapp.example.com
+  tls: []
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+database:
+  enabled: true
+  image:
+    repository: mydatabase
+    tag: 1.0.0
+    pullPolicy: IfNotPresent
+    
+    
+    
+    4)  deployment.yaml
+    
+ apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mywebapp.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "mywebapp.name" . }}
+    helm.sh/chart: {{ include "mywebapp.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "mywebapp.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "mywebapp.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          env:
+            - name: DB_HOST
+              value: {{ include "mywebapp.fullname" . }}-database
+            - name: DB_PORT
+              value: "5432"
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+      {{- if .Values.database.enabled }}
+      initContainers:
+        - name: init-database
+          image: "{{ .Values.database.image.repository }}:{{ .Values.database.image.tag }}"
+          imagePullPolicy: {{ .Values.database.image.pullPolicy }}
+          command: ["sh", "-c", "while ! nc -z {{ include "mywebapp.fullname" . }}-database 5432; do sleep 1; done;"]
+      {{- end }}
+
+
+5) service.yaml
+
+
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mywebapp.fullname" . }}
+  labels:
+    app.kubernetes.io
+
